@@ -1,0 +1,1205 @@
+1. Creas usuario y base de datos para el proyecto.
+2. Creas el proyecto.
+3. Modificas el .env
+4. Pones npm run watch -d y php artisan serve en terminales distintas.
+5. Creas modelo (migracion, modelo, controlador) para cada tabla, y solo migraciones para tablas pivote.
+6. Rellenas las migraciones, despues el modelo y el CRUD para mas adelante.
+7. Ejecutas la migracion para enviarla a la base de datos creada.
+8. Añadimos en la ruta (web.php) la ruta de la tabla con la que se vaya a realizar el CRUD.
+   Route::resource('monografias', MonografiaController::class)
+9. Rellenamos el CRUD.
+10.Creamos una carpeta con el nombre de la tabla que tiene el CRUD (minuscula/plural), y dentro metemos
+   index.blade.php/create.blade.php/edit.blade.php.
+11.Darle permisos del CRUD solo al admin: 1º Cambio (/routes/web.php) | 2º Cambio (/app/Providers/AuthServiceProvider.php)
+   3º Cambio (/app/Http/Request/StoreMonosgrafiaRequest.php && UpdateMonosgrafiaRequest.php)
+
+
+///////PARA PROYECTOS CLONADOS////////
+
+Git clone al repositorio donde tienes el protecto
+Crear una base de datos y un usuario vacio para el examen
+Run composer install.
+Run cp .env.example .env.
+Completas el .env
+Run php artisan key:generate.
+npm install
+Run php artisan migrate.
+npm run watch -d
+Run php artisan serve.
+
+
+Comprobar quitando este archivo.
+##/components/monografias.blade.php
+
+
+//1-POSTGRES//
+
+//1.1 Conexión a base de datos
+// OPCIONES-> -h = ip | -U = usuario | -d = base de datos  
+
+//Modo postgres
+sudo -u postgres psql -d prueba SE USA ESTE PARA PODER MODIFICAR LA BASE DE DATOS
+
+//Modo usuario normal
+psql -h localhost -U prueba -d prueba
+
+*************************************************************
+//1.2 Creación Usuario prueba
+
+//Desde terminal
+sudo -u postgres createuser -P prueba
+
+//Desde postgres
+CREATE USER prueba;
+
+*************************************************************
+//1.3 Creación Base de datos
+
+//Desde terminal
+sudo -u postgres createdb prueba
+
+// Desde postgres
+CREATE DATABASE prueba;
+// Opción de dar propietario a un usuario
+CREATE DATABASE prueba WITH OWNER usuario;
+ALTER DATABASE bdname OWNER TO usuario; 
+
+*************************************************************
+//1.4 Comandos posgres
+
+\?		//Ayuda postgres
+\?		//Ayuda comandos pgsql
+\l   		//Listado de base de datos
+\d   		//Listado de tablas y secuencias
+\dt		//Listado de tablas
+\du		//Listado de usuarios
+\d+ nombretabla	//Muestra información detallada de una tabla
+
+*************************************************************
+*************************************************************
+//2- LARAVEL
+//2.1 Crear proyecto nuevo Laravel (Con Tailwind)
+
+composer create-project laravel/laravel nombreProyecto //Crear el proyecto
+cd nombreProyecto    //Entras en la carpeta del proyecto
+
+composer require laravel/breeze // Te hace falta para instalar breeze y te instala el vendor
+php artisan breeze:install // Instala el breeze
+
+npm install          //Te crea la carpeta Node_Modules
+
+npm run dev       //Comenzar el build process ejecutando (Necesario para que funcione)
+npm run watch -d  //Build process automático (Para los cambios de estilos en la vista)
+
+
+*************************************************************
+//2.2 Fichero .env
+
+//Copiar .env.example
+cp .env.example .env
+
+//Editar fichero .env
+DB_CONNECTION=pgsql
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_DATABASE=tubasededatos
+DB_USERNAME=tuusuario
+DB_PASSWORD=tucontraseña
+
+//Generar la clave para .env (SOLO CUANDO ES UN PROYECTO CLONADO)
+php artisan key:generate
+
+*************************************************************
+//3  CREAR MODELOS,MIGRACION y CONTROLADOR
+
+php artisan make:model -a Monografia (Mayuscula/Singular) Te crea migracion, modelo y controlador.
+
+Nota: Si es para tablas que no tienen identificacion propia (tablas con claves ajenas), no es necesario crear un modelo, ya que solo necesitan una migración. 
+Se crearía con (php artisan make:migration create_nombreMigracion_table).
+
+EJEMPLO DE MIGRACION DE UNION CON CLAVES AJENAS
+	public function up()
+    {
+        Schema::create('articulo_monografia', function (Blueprint $table) {
+            $table->foreignId('articulo_id')->constrained('articulos');
+            $table->foreignId('monografia_id')->constrained('monografias');
+            $table->primary(['articulo_id', 'monografia_id']);
+        });
+    }
+
+//3.1 COMANDOS PARA LAS MIGRACIONES
+//Crear migraciones
+php artisan make:migration nombreMigracion
+
+//Ver estado de las migraciones
+php artisan migrate:status
+
+//Borrar última migración
+php artisan migrate:rollback
+
+//Borrar todas las migraciones
+php artisan migrate:reset
+
+//Borrar todas las tablas y migrar
+php artisan migrate:fresh
+
+//Ejecutar la migración
+php artisan migrate
+
+//3.2 TIPOS DE DATOS COLUMNAS EN LA MIGRACIÓN
+//Tipos frecuentes
+$table->id();
+$table->string('nombre');
+$table->integer('anyo'); Hasta 10 digitos.
+$table->biginteger('anyo');
+$table->decimal('salario', 6, 2);
+$table->timestamp('fechaconhora');
+$table->date('fechasinhora');
+$table->addColumn('interval', 'duracion'); 
+
+//Poner que sea nulo
+$table->string('nombre')->nullable();
+
+//Claves ajenas
+$table->foreignId('depart_id')->constrained('depart');
+
+//*Para datos que no existen en laravel (interval)*//
+public function up()
+    {
+        Grammar::macro('typeInterval', function () {
+            return 'interval';
+        });
+
+        Schema::create('temas', function (Blueprint $table) {
+            $table->id();
+            $table->string('titulo');
+            $table->integer('anyo');
+            $table->addColumn('interval', 'duracion'); 
+            $table->timestamps();
+        });
+    }
+}
+ 
+public function down()
+{
+	Schema::dropIfExists('alumnos');
+}
+
+3.2 CONFIGURAR MODELO
+
+EJEMPLO DE MODELO
+
+class Autor extends Model
+{
+    use HasFactory;
+
+    //Para tablas con plural en Ingles: 
+    protected $table = 'autores';
+
+    public function articulos()
+    {
+        return $this->hasOne(Articulo::class); Relacion de 1 a 1.
+        
+        (Para sus claves ajenas que aparezcan en otras tablas) 
+        return $this->hasMany(Articulo::class); Relacion de 1 a muchos.
+        return $this->belongsToMany(Articulo::class); Relacion de muchos a muchos.
+        
+        (Para claves ajenas que esten en su misma tabla)
+        return $this->belongsTo(Articulo::class); Relacion de muchos a 1.
+    }
+}
+
+NOTA: MIRAR EL HASMANYTHROUGHT, NO SE USARA SEGURAMENTE PERO Y SI SI.
+
+3.3 CONFIGURAR CRUD
+
+Modificar Estos Archivos para que autoricen a crear (store) y modificar (update) datos.
+/App/Http/Request/StoreNombreRequest.php
+/App/Http/Request/UpdateNombreRequest.php
+
+class StoreMonografiaRequest extends FormRequest
+{
+    /
+     * Determine if the user is authorized to make this request.
+     *
+     * @return bool
+     */
+    public function authorize()
+    {
+        return true;
+    }
+
+    /
+     * Get the validation rules that apply to the request.
+     *
+     * @return array
+     */
+    public function rules()
+    {
+        return [
+            'titulo' => 'required|string|max:255',
+            'anyo' => 'required|integer',
+        ];
+    }
+}
+
+
+CONTROLADOR
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+
+
+//Devuelve la vista principal con todos los registros
+public function index()
+    {
+    	(-Devuelve todos los carritos del User indicado-)
+    	$carritos = Auth::user()->carritos;
+    	return $carritos;
+    
+    
+	$clientes = DB::table('clientes')->get();
+
+	return view('clientes.index', ['clientes' => $clientes,]);
+    }
+
+//Te lleva a la vista create.blade.php (Formulario para insertar un nuevo elemento)
+public function create()
+    {
+	$cliente = (object) [
+	'nombre' => null,
+	'dni'=> null,
+	'localidad' => null,
+	'fecha_nac' => null,
+	];
+
+	return view('clientes.create', ['cliente' => $cliente,]);
+    }
+
+
+//Ejecuta el INSERT INTO con los valores del formulario (Si están validados)
+public function store()
+    {
+        $validados = $this->validar();
+
+        DB::table('clientes')->insert([
+            'nombre' => $validados['nombre'],
+            'dni' => $validados['dni'],
+            'localidad' => $validados['localidad'],
+            'fecha_nac' => $validados['fecha_nac'],
+        ]);
+
+        return redirect('/clientes')
+            ->with('success', 'Cliente insertado con éxito.');
+    }
+
+
+public function show($id)
+    {
+        //
+    }
+
+//Te lleva a la vista edit.blade.php (Formulario para modificar un elemento existente)
+public function edit($id)
+    {
+        $cliente = $this->findCliente($id);
+
+        return view('clientes.edit', ['cliente' => $cliente,]);
+    }
+
+//Ejecuta el UPDATE con los valores del formulario (Si están validados)
+public function update(Request $request, $id)
+    {
+        $validados = $this->validar();
+        $this->findCliente($id);
+
+        DB::table('clientes')
+            ->where('id', $id)
+            ->update([
+            'nombre' => $validados['nombre'],
+            'dni' => $validados['dni'],
+            'localidad' => $validados['localidad'],
+            'fecha_nac' => $validados['fecha_nac'],
+        ]);
+
+        return redirect('/clientes')->with('success', 'Cliente modificado con éxito.');
+    }
+
+//Borra un elemento según el id desde la vista del index
+public function destroy($id)
+    {
+        $this->findCliente($id);
+
+        DB::delete('DELETE FROM clientes WHERE id = ?', [$id]);
+
+        return redirect()->back()
+            ->with('success', 'Cliente borrado correctamente');
+    }
+
+
+//Función para validar los inputs del formulario
+private function validar()
+    {
+        $validados = request()->validate([
+            'nombre' => 'required|max:30',
+            'dni' => 'required|max:9',
+            'localidad' => 'required|max:30',
+            'fecha_nac' => 'required|date',
+        ]);
+
+        return $validados;
+    }
+
+//Función para buscar un cliente por id
+private function findCliente($id)
+    {
+        $clientes = DB::table('clientes')
+            ->where('id', $id)
+            ->get();
+
+        abort_if($clientes->isEmpty(), 404);
+
+        return $clientes->first();
+    }
+
+
+*************************************************************
+
+//4. RUTAS (Se deberia hacer antes que el CRUD)
+
+use App\Http\Controllers\MonografiaController;
+
+Route::resource('monografia', MonografiaController::class); Te crea todas las  rutas para monografia.
+
+Route::get('/carritos)
+
+php artisan route:list; Te mira las rutas que tienes.
+
+    
+*************************************************************
+//6 VISTAS
+//Creamos una carpeta (en plural y minúscula) por cada tabla.
+//Creamos el index.blade.php, create.blade.php, edit.blade.php
+
+//Creamos una carpeta components, para poner dentro el (NombreTabla.blade.php) (minuscula/plural) y añadimos esto:
+
+<x-guest-layout>
+    <div class="container mx-auto mt-4">
+        <div class="flex flex-1 flex-col items-center">
+            @if (session()->has('error'))
+                <div class="bg-red-100 rounded-lg p-4 mt-4 mb-4 text-sm text-red-700"
+                    role="alert">
+                    <span class="font-semibold">Error:</span>
+                    {{ session('error') }}
+                </div>
+            @endif
+
+            @if (session()->has('success'))
+                <div class="bg-green-100 rounded-lg p-4 mt-4 mb-4 text-sm text-green-700"
+                    role="alert">
+                    {{ session('success') }}
+                </div>
+            @endif
+
+            {{ $slot }}
+        </div>
+    </div>
+</x-guest-layout>
+
+*************************************************************
+//7 CONVENCIÓN DE NOMBRES
+Base de datos -> prueba (singular + minúscula)
+Tablas -> pruebas  (plural + minúscula)
+
+php artisan make:model Prueba
+php artisan make:controller PruebasController
+php artisan make:migration create_alumnos_table.php
+
+Carpeta views -> pruebas (plural + minúscula)
+Vista(index, create, edit)  -> Todo en minúscula
+
+*************************************************************
+//8 CONSULTAS AVANZADAS
+
+MIGRACION
+
+public function up()
+    {
+        Schema::create('clientes', function (Blueprint $table) {
+            $table->id();
+            $table->string('dni')->unique();
+            $table->string('nombre');
+            $table->timestamps();
+        });
+    }
+    
+public function up()
+    {
+        Schema::create('cuentas', function (Blueprint $table) {
+            $table->id();
+            $table->decimal('numero', 20, 0)->unique();
+            $table->timestamps();
+        });
+    }
+    
+Solo para la tabla intermedia sin ID, no necesita modelo, crud ni ruta
+
+public function up()
+    {
+        Schema::create('titulares', function (Blueprint $table) {
+            $table->foreignId('cuenta_id')->constrained('cuentas');
+            $table->foreignId('cliente_id')->constrained('clientes');
+            $table->primary(['cuenta_id', 'cliente_id']);
+        });
+    }    
+ 
+MODELO
+
+class Cuenta extends Model
+{
+    use HasFactory;
+
+
+    //SE PONE SIEMPRE
+    
+    //protected $table = 'cuentas';
+
+    //protected $fillable = [
+    //    'dni',
+    //    'nombre'
+    //];
+
+
+
+    public function clientes()
+    {
+        return $this->belongsToMany(Cliente::class, 'titulares');
+    }
+
+    public function movimientos()
+    {
+        return $this->hasMany(Movimiento::class);
+    }
+
+
+}
+
+RUTAS
+
+Route::resource('clientes', ClienteController::class);
+
+
+Route::middleware(['auth'])->group(function () {
+    Route::resource('clientes', ClienteController::class);
+
+    Route::get('/cuentas', [CuentaController::class, 'index'])->name('cuentas.index');
+
+    Route::get('/cuentas/create', [CuentaController::class, 'create'])->name('cuentas.create');
+
+    Route::post('/cuentas/store', [CuentaController::class, 'store'])->name('cuentas.store');
+
+    Route::get('/cuentas/{cuenta}/detalles', [CuentaController::class, 'show'])->name('cuentas.show');
+
+    Route::get('/cuentas/{cuenta}/titulares',[CuentaController::class, 'titulares'])->name('cuentas.titulares');
+
+    Route::post('/cuentas/{cuenta}/anadir',[CuentaController::class, 'anadir'])->name('cuentas.anadir');
+
+});
+
+
+//Solo puede acceder el usuario admin
+Route::get('/carritos', [CarritoController::class, 'index'])
+->middleware(['auth', 'can:solo-admin'])->name('carrito');
+
+//App/Providers/AuthServiceProvider.php
+public function boot()
+    {
+        $this->registerPolicies();
+
+        Gate::define('solo-admin', function (User $user) {
+            return $user->name == 'admin' ?
+                Response::allow() :
+                Response::deny('Sólo el administrador puede entrar.');
+        });
+        //
+    }
+
+
+
+Route::post('/carritos/meter/{zapato}', [CarritoController::class, 'meter'])
+->middleware(['auth'])->name('carrito.meter');
+
+Route::post('/carritos/restar/{zapato}', [CarritoController::class, 'restar'])
+->middleware(['auth'])->name('carrito.restar');
+
+Route::post('/carritos/sumar/{zapato}', [CarritoController::class, 'sumar'])
+->middleware(['auth'])->name('carrito.sumar');
+
+Route::post('/carritos/vaciar', [CarritoController::class, 'vaciar'])
+->middleware(['auth'])->name('carrito.vaciar');
+
+Route::post('/carritos/facturar', [CarritoController::class, 'facturar'])
+->middleware(['auth'])->name('carrito.facturar');
+
+|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||11
+CRUD COMPLETO
+
+public function index()
+    {
+
+       
+        return view('clientes.index', [
+            'clientes' => Cliente::all()
+        ]);
+    }
+    
+public function create()
+    {
+        $cliente = new Cliente();
+
+        return view('clientes.create', [
+            'cliente' => $cliente
+
+        ]);
+    }   
+
+public function store(StoreClienteRequest $request)
+    {
+
+        //dd($request->validated());
+
+        $cliente = new Cliente($request->validated());
+        $cliente->save();
+
+        return redirect()->route('clientes.index')->with('success','cliente creado correctamente');
+
+
+    }
+
+public function show(Cliente $cliente)
+    {
+
+        return view('clientes.show', [
+            'cliente' => $cliente
+
+        ]);
+
+    }
+    
+public function edit(Cliente $cliente)
+    {
+
+        return view('clientes.edit', [
+            'cliente' => $cliente
+
+        ]);
+
+    }
+    
+public function update(UpdateClienteRequest $request, Cliente $cliente)
+    {
+        $cliente->fill($request->validated());
+        $cliente->save();
+
+        return redirect()->route('clientes.index')->with('success','cliente editado correctamente');
+
+    }
+    
+public function destroy(Cliente $cliente)
+    {
+
+        $cliente->delete();
+
+        return redirect()->route('clientes.index')->with('success','cliente borrado correctamente');
+
+    }
+
+||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||1
+
+/Http/Request/StoreNombreTablaRequest
+
+public function authorize()
+    {
+        // return Auth::user()->name == 'admin';
+        return true;
+    }
+
+    /**
+     * Get the validation rules that apply to the request.
+     *
+     * @return array<string, mixed>
+     */
+    public function rules()
+    {
+        return [
+            'dni' => 'required|regex:/^\d{8}[a-zA-Z]$/|',
+            'nombre' => 'required|string',
+        ];
+    }
+    
+
+/Http/Request/UpdateNombreTablaRequest
+
+public function authorize()
+    {
+        return true;
+    }
+
+    /**
+     * Get the validation rules that apply to the request.
+     *
+     * @return array<string, mixed>
+     */
+    public function rules()
+    {
+        return [
+            'dni' => 'required|regex:/^\d{8}[a-zA-Z]$/|unique:clientes,dni,' . $this->cliente->id,
+            'nombre' => 'required|string',
+        ];
+    }
+||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||  
+/View/layouts/navigation.blade.php
+PONER EN LA CABECERA UN ENLACE
+
+<div class="hidden space-x-8 sm:-my-px sm:ml-10 sm:flex">
+      <x-nav-link :href="route('clientes.index')" :active="request()->routeIs('clientes.index')">
+            {{ __('Ver Clientes') }}
+      </x-nav-link>
+</div>  
+|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+VISTA Ejemplo index.blade.php
+
+
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            {{ __('Dashboard') }}
+        </h2>
+    </x-slot>
+
+    <div class="py-12">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="p-6 bg-white border-b border-gray-200">
+
+
+                    {{$clientes}}
+                    <br>
+                    @foreach ($clientes as $cliente)
+                    {{$cliente}}
+                    <br>
+                    br
+                    @endforeach
+
+                    <table>
+                        <thead>
+                            <th>
+                                Dni
+                            </th>
+                            <th>
+                                Nombre
+                            </th>
+                            <th>
+
+                            </th>
+                        </thead>
+                        <tbody>
+                            @foreach ($clientes as $cliente)
+                                <tr>
+
+                                    <td> <a href="{{ route('clientes.show', $cliente) }}">{{ $cliente->dni }} </a></td>
+                                    <td> {{ $cliente->nombre }} </td>
+                                    <td> <a href="{{ route('clientes.show', $cliente) }}">Mostrar</a> </td>
+                                    <td> <a href="{{ route('clientes.edit', $cliente) }}">Editar</a> </td>
+                                    <td>
+                                        <form action="{{ route('clientes.destroy', $cliente) }}" method="post">
+
+                                            @csrf
+                                            @method('delete')
+
+                                            <button type="submit">borrar</button>
+                                        </form>
+
+                                    </td>
+
+                                </tr>
+                            @endforeach
+
+                            <br>
+
+                            <a href="{{ route('clientes.create') }}">Crear cliente</a>
+
+                        </tbody>
+                    </table>
+
+
+                </div>
+            </div>
+        </div>
+    </div>
+</x-app-layout>
+
+
+Ejemplo create.blade.php
+
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            Crear cliente
+        </h2>
+    </x-slot>
+
+    <div class="py-6">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="p-6 bg-white border-b border-gray-200 flex flex-col items-center">
+                    <div class="flex flex-col items-center mt-4">
+                        <form method="POST" action="{{ route('clientes.store') }}"> TE LO MANDA AL STORE LO QUE PONGAS
+                            @csrf
+                            @method('POST')
+
+                            <div>
+                                <x-label for="dni" value="DNI" />
+
+                                <x-input
+                                id="dni"
+                                class="block mt-1 w-full"
+                                type="text"
+                                name="dni"
+                                placeholder="12345678A"
+                                value="{{ old('dni') }}"
+                                autofocus />
+                                @error('dni')
+                                    <span class="flex items-center font-medium tracking-wide text-red-500 text-xs mt-1 ml-1">
+                                        {{ $message }}
+                                    </span>
+                                @enderror
+                            </div>
+                            <div>
+                                <x-label for="nombre" value="Nombre" />
+
+                                <x-input
+                                id="nombre"
+                                class="block mt-1 w-full"
+                                type="text"
+                                name="nombre"
+                                placeholder="Nombre"
+                                value="{{ old('nombre') }}" />
+                                @error('nombre')
+                                    <span class="flex items-center font-medium tracking-wide text-red-500 text-xs mt-1 ml-1">
+                                        {{ $message }}
+                                    </span>
+                                @enderror
+                            </div>
+
+                            <div class="flex justify-center mt-4">
+                                <x-button>
+                                    Submit
+                                </x-button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</x-app-layout>
+
+
+
+Ejemplo edit.blade.php
+
+<x-app-layout>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            Editar cliente
+        </h2>
+    </x-slot>
+
+    <div class="py-6">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="p-6 bg-white border-b border-gray-200 flex flex-col items-center">
+                    <div class="flex flex-col items-center mt-4">
+                        <form method="POST" action="{{ route('clientes.update', $cliente) }}"> TE LO MANDA AL UPDATE LO QUE PONGAS
+                            @csrf
+                            @method('PUT')
+
+                            <div>
+                                <x-label for="dni" value="DNI" />
+
+                                <x-input
+                                id="dni"
+                                class="block mt-1 w-full"
+                                type="text"
+                                name="dni"
+                                placeholder="12345678A"
+                                value="{{ old('dni', $cliente->dni) }}"
+                                autofocus />
+                                @error('dni')
+                                    <span class="flex items-center font-medium tracking-wide text-red-500 text-xs mt-1 ml-1">
+                                        {{ $message }}
+                                    </span>
+                                @enderror
+                            </div>
+                            <div>
+                                <x-label for="nombre" value="Nombre" />
+
+                                <x-input
+                                id="nombre"
+                                class="block mt-1 w-full"
+                                type="text"
+                                name="nombre"
+                                placeholder="Nombre"
+                                value="{{ old('nombre', $cliente->nombre) }}" />
+                                @error('nombre')
+                                    <span class="flex items-center font-medium tracking-wide text-red-500 text-xs mt-1 ml-1">
+                                        {{ $message }}
+                                    </span>
+                                @enderror
+                            </div>
+
+                            <div class="flex justify-center mt-4">
+                                <x-button>
+                                    Submit
+                                </x-button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</x-app-layout>
+
+
+PASOS PARA HACER CONSULTAS
+
+
+|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+1. Poner la ruta
+
+
+Route::post('/carritos/meter/{zapato}', [CarritoController::class, 'meter'])
+->middleware(['auth'])->name('carrito.meter');
+
+2. Pones la consulta en el controlador
+
+
+public function meter( Zapato $zapato)
+    {
+        $carrito = Carrito::where('zapato_id', $zapato->id)->where('user_id', auth()->user()->id)->get();
+
+        if ($carrito->isEmpty()) {
+            $carrito = new Carrito();
+            $carrito->user_id = Auth::user()->id;
+            $carrito->zapato_id = $zapato->id;
+            $carrito->cantidad = 1;
+            $carrito->save();
+
+            return redirect()->route('zapatos')->with('success', 'Zapato anadido al carrito.');
+
+        }
+
+        $carrito[0]->cantidad +=1;
+        $carrito[0]->save();
+
+        return redirect()->route('zapatos')->with('success', 'Zapato anadido al carrito.');
+    }
+
+3. En la vista de zapato pones el boton que te redirige a la funcion del CRUD.
+
+<td class="px-6 py-2">
+   <form action="{{ route('carrito.meter', $zapato) }}" method="POST">
+        @csrf
+        @method('POST')
+        <button type="submit" class="px-5 py-2 text-white bg-purple-200">Añadir al carrito</button>
+   </form>
+</td>
+|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+OTROS EJEMPLOS
+
+|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+LIMPIA UN CARRITO QUE PERTENECE AL USUARIO LOGUEADO EN ESE MOMENTO
+
+Route::post('/carritos/vaciar', [CarritoController::class, 'vaciar'])
+->middleware(['auth'])->name('carrito.vaciar');
+------------------------------------------------------------------------------
+<form action="{{route('carrito.vaciar')}}" method="post">
+     @csrf
+     @method('POST')
+     <button class="bg-red-500 text-black px-7 py-2" type="submit"> Vaciar carrito</button>
+</form>
+-------------------------------------------------------------------------------
+public function vaciar()
+    {
+        $carrito = Carrito::where('user_id', auth()->user()->id)->get();
+
+        if ($carrito->isEmpty()) {
+            return redirect()->route('carrito')->with('error', 'El carrito esta vacio.');
+        }
+
+        $carrito->each->delete();
+
+        return redirect()->route('carrito')->with('success', 'Carrito vaciado.');
+
+    }
+||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+SUMAR O RESTAR ZAPATOS DE UN CARRITO
+
+
+
+Route::post('/carritos/restar/{zapato}', [CarritoController::class, 'restar'])
+->middleware(['auth'])->name('carrito.restar');
+
+Route::post('/carritos/sumar/{zapato}', [CarritoController::class, 'sumar'])
+->middleware(['auth'])->name('carrito.sumar');
+
+
+
+
+<form action="{{route('carrito.restar', $carrito->zapato)}}" method="post">
+     @csrf
+     @method('POST')
+     <button class="inline-flex text-black h-6 px-3 justify-center items-center" type="submit"> - </button>
+</form>
+
+
+<form action="{{route('carrito.sumar', $carrito->zapato)}}" method="post">
+      @csrf
+      @method('POST')
+      <button class="inline-flex text-black h-6 px-3 justify-center items-center" type="submit">+</button>
+</form>
+
+
+
+public function restar(Zapato $zapato)
+    {
+        $carrito = Carrito::where('zapato_id', $zapato->id)->where('user_id', auth()->user()->id)->get();
+
+        if ($carrito[0]->cantidad === 1) {
+            $carrito[0]->delete();
+
+            return redirect()->route('carrito')->with('success', 'Zapato eliminado del carrito.');
+        }
+
+        $carrito[0]->cantidad -=1;
+        $carrito[0]->save();
+
+        return redirect()->route('carrito')->with('success', 'Zapato restado del carrito.');
+    }
+
+public function sumar(Zapato $zapato)
+    {
+        $carrito = Carrito::where('zapato_id', $zapato->id)->where('user_id', auth()->user()->id)->get();
+
+        $carrito[0]->cantidad +=1;
+        $carrito[0]->save();
+
+        return redirect()->route('carrito')->with('success', 'Zapato sumado al carrito.');
+    }
+
+||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+Route::post('/carritos/facturar', [CarritoController::class, 'facturar'])
+->middleware(['auth'])->name('carrito.facturar');
+
+<form action="{{route('carrito.facturar')}}" method="post">
+     @csrf
+     @method('POST')
+     <button class="bg-green-500 text-black px-5 py-2" type="submit"> Realizar pedido</button>
+</form>
+
+public function facturar(Factura $factura, Linea $linea ) {
+
+        $factura_nueva = new Factura();
+        $factura_nueva->user_id = Auth::user()->id;
+        $factura_nueva->save();
+
+        $carrito = Carrito::where('user_id', auth()->user()->id)->get();
+
+        foreach ($carrito as $lineacarrito) {
+            $linea_nueva = new Linea();
+            $linea_nueva->factura_id = $factura_nueva->id;
+            $linea_nueva->zapato_id = $lineacarrito->zapato_id;
+            $linea_nueva->cantidad = $lineacarrito->cantidad;
+            $linea_nueva->save();
+        }
+
+        $carrito->each->delete();
+
+        return redirect()->route('carrito')->with('success', 'Pedido realizado.');
+
+    }
+
+|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+VER LA CUENTAS DE CADA USUARIO Y LOS MOVIMIENTOS DE CADA UNA
+
+ENLACE A LA RUTA DE CLIENTES SHOW HECHA EN EL INDEX
+<td> <a href="{{ route('clientes.show', $cliente) }}">Mostrar</a> </td>
+
+LA RUTA resource TE CREA TO LAS RUTAS PREDEFEINIDAS, EN ESTE CASO clientes.show esta, es decir que va al CRUD directamente
+
+ESTA FUNCION TE REDIRIGE A LA VISTA DE clientes.show
+
+public function show(Cliente $cliente)
+    {
+
+
+        //dd($cliente);
+
+        return view('clientes.show', [
+            'cliente' => $cliente
+
+        ]);
+
+    }
+
+//En la vista de clientes.show
+YA AQUI MUESTRAS TODAS LAS CUENTAS CON UN ENLACE A LOS MOVIMIENTOS DE CADA CUENTA QUE REDIRIGE A LA RUTA cuentas.show
+
+@foreach ($cliente->cuentas as $cuenta)
+
+{{$cuenta->id}}
+{{$cuenta->numero}}
+<a href="{{route('cuentas.show',$cuenta)}}">mostrar movimineto</a>
+<br>
+@endforeach
+
+LA RUTA SE HACE A MANO PORQUE NO ES PREDEFINIDA Y TE LLEVA A LA FUNCION show DEL CONTROLADOR, se le establece un nombre, se sule poner el que sea segun convenio
+Route::get('/cuentas/{cuenta}/show', [CuentaController::class, 'show'])->name('cuentas.show');
+
+
+
+ESTA FUNCION COGE LA CUENTA QUE HAYAS SELECCIONADO EN EL FOREACH DE LA VISTA Y METE EN UNA VARIABLE LA 
+SUMA DE LOS IMPORTES DE ESA CUENTA ESPECIFICA Y TE ENVIA A LA VISTA cuenta.show
+
+
+public function show(Cuenta $cuenta)
+    {
+        $movimientos = $cuenta->withSum('movimientos', 'importe')->find($cuenta->id);
+
+        return view('cuentas.show',[
+            'cuenta' => $cuenta,
+            'movimientos' => $movimientos,
+        ]);
+    }
+
+
+YA EN LA VISTA TE MUESTRA LOS MOVIMIENTOS QUE AL SER CLAVE AJENA DE CUENTAS PUEDES LLAMARLO, Y MUESTRA LOS DATOS
+
+@forelse ($cuenta->movimientos as $movimiento)
+<br>
+{{$movimiento->concepto}}//
+{{$movimiento->fecha->tz('Europe/Madrid')->isoFormat('LLLL')}}//
+{{$movimiento->importe}}//
+<br>
+@empty
+
+no hay movimientos
+@endforelse
+
+@if ($cuenta->movimientos->isNotEmpty())
+SALDO {{ $movimientos->movimientos_sum_importe }}
+
+@endif
+
+||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+TE MUESTRA UN BOTON DE AÑADIR TITULAR A CADA CUENTA CON LA RUTA A LA QUE IRA
+@foreach ($cuentas as $cuenta)
+  <tr>
+     <td> {{ $cuenta->numero }} </td>
+
+     <td>
+          <a href="{{ route('cuentas.titulares',$cuenta) }}">añadir titular</a>
+     </td>
+
+  </tr>
+@endforeach
+
+LA RUTA TE REDIRIGE AL CRUD, EN ESTE CASO A LA FUNCION TITULARES DEL CRUD DE CUENTA
+Route::get('/cuentas/{cuenta}/titulares',[CuentaController::class, 'titulares'])->name('cuentas.titulares');
+
+SELECCIONAS TODOS LOS CLIENTES Y DE ESOS MUESTRA LOS QUE NO SEAN CLIENTES DE ESA CUENTA SELECCIONADA Y LO LLEVA A LA VISTA NUEVA /cuenta/titulares.blade.php
+public function titulares(Cuenta $cuenta)
+    {
+
+        $clientes = Cliente::all()->diff($cuenta->clientes);
+
+
+        return view('cuentas.titulares',[
+
+            'cuenta'=>$cuenta,
+            'clientes'=> $clientes,
+        ]);
+    }
+
+
+YA EN LA VISTA RECOGES TODOS LOS CLIENTES, YA FILTRADOS PREVIAMENTE Y TE LOS MUESTRA, JUNTO A UN BOTON QUE REDIRIGE A LA RUTA cuentas.anadir
+
+<form method="POST" action="{{ route('cuentas.anadir',$cuenta) }}">
+                            @csrf
+                            @method('POST')
+
+                            <select name="cliente_id" id="">
+
+                                @foreach ($clientes  as $cliente)
+
+
+
+                                <option value="{{$cliente->id}}">{{$cliente->nombre}}</option>
+
+
+                                @endforeach
+                                <br>
+
+                            </select>
+
+                            <button type="submit">enviar</button>
+
+</form>
+
+
+AQUI LA RUTA QUE TE MANDA A LA FUNCION ANADIR DEL CRUD cuenta
+Route::post('/cuentas/{cuenta}/anadir',[CuentaController::class, 'anadir'])->name('cuentas.anadir');
+
+
+AQUI ESTA LA FUNCION CON UN attach QUE LO QUE HACE ES UNIR EL cliente_id A LA cuenta SELECCIONADA y te acaba redirigiendo al index de la carpeta cuentas
+public function anadir(Request $request, Cuenta $cuenta)
+    {
+
+        $cuenta->clientes()->attach($request->cliente_id);
+
+        return redirect()->route('cuentas.index');
+    }
+
+
+
+||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
